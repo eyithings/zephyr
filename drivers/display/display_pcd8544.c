@@ -68,15 +68,12 @@ static int pcd8544_set_position(const struct device *dev, uint8_t x, uint8_t y)
 		int ret;
 
 		ret = pcd8544_cmd_send(dev, CMD_OP_SETX, 0x7F & x);
-
 		if (ret < 0) {
 			return ret;
 		}
 
 		ret = pcd8544_cmd_send(dev, CMD_OP_SETY, 0x07 & y);
-
 		return ret;
-
 	} else {
 		return -EINVAL;
 	}
@@ -84,7 +81,6 @@ static int pcd8544_set_position(const struct device *dev, uint8_t x, uint8_t y)
 
 static int pcd8544_clear(const struct device *dev)
 {
-
 	const struct pcd8544_config *config = dev->config;
 	struct pcd8544_datas *datas = dev->data;
 
@@ -110,46 +106,39 @@ static int pcd8544_init(const struct device *dev)
 	}
 
 	ret = pcd8544_reset(dev);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	ret = pcd8544_extended_instruction(dev, true);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	/* Set bias */
 	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_BIAS, 0x07 & config->bias);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	/* Set vop */
 	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, 0x3F);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	ret = pcd8544_extended_instruction(dev, false);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	/* set to normal mode */
 	ret = pcd8544_cmd_send(dev, CMD_OP_DISP_CTRL, CMD_VALUE_DISPLAY_NORMAL);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	ret = pcd8544_clear(dev);
-
 	if (ret < 0) {
 		return ret;
 	}
@@ -172,7 +161,6 @@ static void pcd8544_get_capabilities(const struct device *dev, struct display_ca
 static int pcd8544_write(const struct device *dev, const uint16_t x, const uint16_t y,
 			 const struct display_buffer_descriptor *desc, const void *buf)
 {
-
 	int ret;
 	uint8_t pixels_to_send[DISPLAY_WIDTH];
 
@@ -191,14 +179,12 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 		(((uint8_t)((y + desc->height) / DISPLAY_PAGE_SIZE)) + 1) * DISPLAY_PAGE_SIZE;
 
 	for (int yi = y_start; yi < y_end && yi < DISPLAY_HEIGHT; yi++) {
-
 		uint8_t y_page = yi / DISPLAY_PAGE_SIZE;
 		uint8_t y_offset = yi % DISPLAY_PAGE_SIZE;
 
 		int xi;
 
 		for (xi = x; (xi - x) < desc->width && xi < DISPLAY_WIDTH; xi++) {
-
 			/* Due to page system of the display controller, it necessary to rewrite */
 			/* some value in same page that the pixels updated. */
 			if ((yi < y) || (yi >= (y + desc->height))) {
@@ -221,7 +207,6 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 
 		if (y_offset == (DISPLAY_PAGE_SIZE - 1)) {
 			ret = pcd8544_set_position(dev, x, y_page);
-
 			if (ret < 0) {
 				return ret;
 			}
@@ -230,7 +215,6 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 
 			ret = mipi_dbi_write_display(config->bus, &config->bus_config,
 						     pixels_to_send, &write_desc, PXL_FMT);
-
 			if (ret < 0) {
 				return ret;
 			}
@@ -257,27 +241,25 @@ static int pcd8544_set_contrast(const struct device *dev, const uint8_t contrast
 	int ret;
 
 	ret = pcd8544_extended_instruction(dev, true);
-
 	if (ret < 0) {
 		return ret;
 	}
 
 	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, contrast >> 1);
-
 	if (ret < 0) {
 		return ret;
 	}
 
-	ret = pcd8544_extended_instruction(dev, false);
-
-	return ret;
+	return pcd8544_extended_instruction(dev, false);
 }
 
-static DEVICE_API(display, pcd8544_api) = {.write = pcd8544_write,
-					   .get_capabilities = pcd8544_get_capabilities,
-					   .blanking_on = pcd8544_blanking_on,
-					   .blanking_off = pcd8544_blanking_off,
-					   .set_contrast = pcd8544_set_contrast};
+static DEVICE_API(display, pcd8544_api) = {
+	.write = pcd8544_write,
+	.get_capabilities = pcd8544_get_capabilities,
+	.blanking_on = pcd8544_blanking_on,
+	.blanking_off = pcd8544_blanking_off,
+	.set_contrast = pcd8544_set_contrast,
+};
 
 #define PCD8544_INIT(inst)                                                                         \
 	static const struct pcd8544_config pcd8544_config_##inst = {                               \
@@ -288,7 +270,8 @@ static DEVICE_API(display, pcd8544_api) = {.write = pcd8544_write,
 				.config = MIPI_DBI_SPI_CONFIG_DT_INST(                             \
 					inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0),            \
 			},                                                                         \
-		.bias = DT_INST_PROP(inst, bias)};                                                 \
+		.bias = DT_INST_PROP(inst, bias),                                                  \
+	};                                                                                         \
                                                                                                    \
 	static struct pcd8544_datas pcd8544_datas_##inst;                                          \
                                                                                                    \
