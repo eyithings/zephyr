@@ -1,7 +1,7 @@
 # Copyright (c) 2025 LACOMBE Quentin <quentlace2g@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
-title: Philips PCD8544 LCD display controller
+title: PCD8544 LCD display controller
 
 description: |
    Philips PCD8544 is LCD display controller that support LCD monochrome display
@@ -14,4 +14,17 @@ include: [mipi-dbi-spi-device.yaml, display-controller.yaml]
 properties:
   bias:
     type: int
-    description: Bias value for LCD panel
+    description: |
+      Sets the LCD bias system i.e. bits BS2:BS0 . Values range 0 to 7.
+      This controls the LCD bias voltage. See datasheet for more info.
+
+  vop:
+    type: int
+    default: 63
+    description: |
+      Sets the LCD operation voltage (VOP), i.e. bits VOP6:VOP0 in the
+      "Set VOP". Value range 0 to 127.
+
+      VLCD = 3.06 + (vop * 0.06) [V], giving a program range of
+      3.00 to 10.68 V at room temperature.
+ 
