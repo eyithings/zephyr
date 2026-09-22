@@ -93,8 +93,13 @@ static int pcd8544_reset(const struct device *dev)
 static int pcd8544_cmd_send(const struct device *dev, uint8_t cmd, uint8_t value)
 {
 	const struct pcd8544_config *config = dev->config;
+	int ret;
 
-	return mipi_dbi_command_write(config->bus, &config->bus_config, cmd | value, NULL, 0);
+	ret = mipi_dbi_command_write(config->bus, &config->bus_config, cmd | value, NULL, 0);
+
+	mipi_dbi_release(config->bus, &config->bus_config);
+
+	return ret;
 }
 
 /**
@@ -128,7 +133,6 @@ static int pcd8544_set_position(const struct device *dev, uint8_t x, uint8_t y)
 
 static int pcd8544_clear(const struct device *dev)
 {
-	const struct pcd8544_config *config = dev->config;
 	pcd8544_set_position(dev, 0, 0);
 	return 0;
 }
@@ -234,7 +238,7 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 	     page++) {
 		ret = pcd8544_set_position(dev, (uint8_t)x, (uint8_t)page);
 		if (ret < 0) {
-			return ret;
+			goto out;
 		}
 
 		/* X auto-increments on the controller, so the page address only
@@ -251,7 +255,8 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 
 			if ((size_t)(pixels - (const uint8_t *)buf) + chunk > buf_len) {
 				LOG_ERR("Exceeded buffer length");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto out;
 			}
 
 			memcpy(chunk_buf, pixels, chunk);
@@ -259,14 +264,17 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 			ret = mipi_dbi_write_display(config->bus, &config->bus_config, chunk_buf,
 						     &chunk_desc, PXL_FMT);
 			if (ret < 0) {
-				return ret;
+				goto out;
 			}
 
 			pixels += chunk;
 		}
 	}
 
-	return 0;
+	ret = 0;
+out:
+	mipi_dbi_release(config->bus, &config->bus_config);
+	return ret;
 }
 
 static inline int pcd8544_blanking_on(const struct device *dev)
