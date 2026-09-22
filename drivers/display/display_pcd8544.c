@@ -21,6 +21,10 @@ LOG_MODULE_REGISTER(display_pcd8544, CONFIG_DISPLAY_LOG_LEVEL);
 #define DISPLAY_PAGE_SIZE 8
 #define PXL_FMT           PIXEL_FORMAT_MONO10
 
+
+#define PCD8544_SPI_OPERATION (SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LOCK_ON)
+#define WRITE_CHUNK_SIZE       DISPLAY_WIDTH
+
 /* FUNCTION SET */
 
 #define CMD_OP_FUNCSET 0x20
@@ -187,7 +191,7 @@ static void pcd8544_get_capabilities(const struct device *dev, struct display_ca
 	caps->y_resolution = DISPLAY_HEIGHT;
 
 	caps->supported_pixel_formats = PXL_FMT;
-	caps->screen_info = 0;
+	caps->screen_info = SCREEN_INFO_MONO_VTILED;
 	caps->current_pixel_format = PXL_FMT;
 }
 
@@ -195,7 +199,73 @@ static int pcd8544_write(const struct device *dev, const uint16_t x, const uint1
 			 const struct display_buffer_descriptor *desc, const void *buf)
 {
 	const struct pcd8544_config *config = dev->config;
-	const uint8_t *pixels_buffer = buf;
+	const uint8_t *pixels = buf;
+	uint8_t chunk_buf[WRITE_CHUNK_SIZE];
+	
+	size_t buf_len;
+	int ret;
+
+	if (desc->pitch != desc->width) {
+		LOG_ERR("Unsupported pitch %u for width %u", desc->pitch, desc->width);
+		return -EINVAL;
+	}
+
+	/* One byte packs 8 vertically-stacked pixels (MONO_VTILED); writes must
+	 * land on a page boundary since we never read RAM back to merge bits.
+	 */
+	if ((y % DISPLAY_PAGE_SIZE) != 0 || (desc->height % DISPLAY_PAGE_SIZE) != 0) {
+		LOG_ERR("y (%u) and height (%u) must be a multiple of %d", y, desc->height,
+			DISPLAY_PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	if ((x + desc->width) > DISPLAY_WIDTH || (y + desc->height) > DISPLAY_HEIGHT) {
+		LOG_ERR("Write area out of bounds");
+		return -EINVAL;
+	}
+
+	buf_len = MIN(desc->buf_size, (size_t)desc->width * desc->height / DISPLAY_PAGE_SIZE);
+	if (pixels == NULL || buf_len == 0U) {
+		LOG_ERR("Display buffer is not available");
+		return -EINVAL;
+	}
+
+	for (uint16_t page = y / DISPLAY_PAGE_SIZE; page < (y + desc->height) / DISPLAY_PAGE_SIZE;
+	     page++) {
+		ret = pcd8544_set_position(dev, (uint8_t)x, (uint8_t)page);
+		if (ret < 0) {
+			return ret;
+		}
+
+		/* X auto-increments on the controller, so the page address only
+		 * needs to be set once above; stream the row in fixed chunks.
+		 */
+		for (uint16_t off = 0; off < desc->width; off += WRITE_CHUNK_SIZE) {
+			uint16_t chunk = MIN(WRITE_CHUNK_SIZE, desc->width - off);
+			struct display_buffer_descriptor chunk_desc = {
+				.buf_size = chunk,
+				.width = chunk,
+				.height = 1,
+				.pitch = chunk,
+			};
+
+			if ((size_t)(pixels - (const uint8_t *)buf) + chunk > buf_len) {
+				LOG_ERR("Exceeded buffer length");
+				return -EINVAL;
+			}
+
+			memcpy(chunk_buf, pixels, chunk);
+
+			ret = mipi_dbi_write_display(config->bus, &config->bus_config, chunk_buf,
+						     &chunk_desc, PXL_FMT);
+			if (ret < 0) {
+				return ret;
+			}
+
+			pixels += chunk;
+		}
+	}
+
 	return 0;
 }
 
@@ -242,8 +312,7 @@ static DEVICE_API(display, pcd8544_api) = {
 			{                                                                          \
 				.mode = MIPI_DBI_MODE_SPI_4WIRE,                                   \
 				.config = MIPI_DBI_SPI_CONFIG_DT_INST(                             \
-					inst,                                                      \
-					SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LOCK_ON, 0),    \
+					inst, PCD8544_SPI_OPERATION, 0),                          \
 			},                                                                         \
 		.bias = DT_INST_PROP(inst, bias),                                                  \
 		.vop = DT_INST_PROP(inst, vop),                                                    \
