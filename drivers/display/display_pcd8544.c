@@ -25,10 +25,6 @@ struct pcd8544_config {
 	uint8_t vop;
 };
 
-struct pcd8544_datas {
-	uint8_t framebuffer[DISPLAY_HEIGHT][DISPLAY_WIDTH];
-};
-
 /**
  * Reset PCD8544 controller
  * @param dev device to reset
@@ -83,17 +79,7 @@ static int pcd8544_set_position(const struct device *dev, uint8_t x, uint8_t y)
 static int pcd8544_clear(const struct device *dev)
 {
 	const struct pcd8544_config *config = dev->config;
-	struct pcd8544_datas *datas = dev->data;
-
-	memset(datas->framebuffer, 0, DISPLAY_HEIGHT * DISPLAY_WIDTH);
-
 	pcd8544_set_position(dev, 0, 0);
-
-	struct display_buffer_descriptor desc = {.buf_size = DISPLAY_WIDTH * DISPLAY_PAGES};
-
-	return mipi_dbi_write_display(config->bus, &config->bus_config,
-				      (uint8_t *)datas->framebuffer, &desc, PXL_FMT);
-
 	return 0;
 }
 
@@ -162,68 +148,8 @@ static void pcd8544_get_capabilities(const struct device *dev, struct display_ca
 static int pcd8544_write(const struct device *dev, const uint16_t x, const uint16_t y,
 			 const struct display_buffer_descriptor *desc, const void *buf)
 {
-	int ret;
-	uint8_t pixels_to_send[DISPLAY_WIDTH];
-
 	const struct pcd8544_config *config = dev->config;
-	struct pcd8544_datas *datas = dev->data;
-
-	memset(pixels_to_send, 0, sizeof(pixels_to_send));
-
 	const uint8_t *pixels_buffer = buf;
-
-	/* We start at the beginning of the current first page. */
-	uint8_t y_start = (uint8_t)(y / DISPLAY_PAGE_SIZE) * DISPLAY_PAGE_SIZE;
-
-	/* We stop at the end of the last page */
-	uint8_t y_end =
-		(((uint8_t)((y + desc->height) / DISPLAY_PAGE_SIZE)) + 1) * DISPLAY_PAGE_SIZE;
-
-	for (int yi = y_start; yi < y_end && yi < DISPLAY_HEIGHT; yi++) {
-		uint8_t y_page = yi / DISPLAY_PAGE_SIZE;
-		uint8_t y_offset = yi % DISPLAY_PAGE_SIZE;
-
-		int xi;
-
-		for (xi = x; (xi - x) < desc->width && xi < DISPLAY_WIDTH; xi++) {
-			/* Due to page system of the display controller, it necessary to rewrite */
-			/* some value in same page that the pixels updated. */
-			if ((yi < y) || (yi >= (y + desc->height))) {
-				uint8_t current_value = datas->framebuffer[yi][xi];
-
-				pixels_to_send[xi - x] |= (current_value << y_offset);
-			} else {
-				int buffer_idx =
-					((yi - y) * desc->width + (xi - x)) / DISPLAY_PAGE_SIZE;
-				int buffer_offset =
-					((yi - y) * desc->width + (xi - x)) % DISPLAY_PAGE_SIZE;
-
-				uint8_t buffer_value =
-					(pixels_buffer[buffer_idx] & BIT(buffer_offset)) >>
-					buffer_offset;
-				pixels_to_send[xi - x] |= (buffer_value << y_offset);
-				datas->framebuffer[yi][xi] = buffer_value;
-			}
-		}
-
-		if (y_offset == (DISPLAY_PAGE_SIZE - 1)) {
-			ret = pcd8544_set_position(dev, x, y_page);
-			if (ret < 0) {
-				return ret;
-			}
-
-			struct display_buffer_descriptor write_desc = {.buf_size = (xi - x)};
-
-			ret = mipi_dbi_write_display(config->bus, &config->bus_config,
-						     pixels_to_send, &write_desc, PXL_FMT);
-			if (ret < 0) {
-				return ret;
-			}
-
-			memset(pixels_to_send, 0, sizeof(pixels_to_send));
-		}
-	}
-
 	return 0;
 }
 
@@ -277,9 +203,7 @@ static DEVICE_API(display, pcd8544_api) = {
 		.vop = DT_INST_PROP(inst, vop),                                                    \
 	};                                                                                         \
                                                                                                    \
-	static struct pcd8544_datas pcd8544_datas_##inst;                                          \
-                                                                                                   \
-	DEVICE_DT_INST_DEFINE(inst, &pcd8544_init, NULL, &pcd8544_datas_##inst,                    \
+	DEVICE_DT_INST_DEFINE(inst, &pcd8544_init, NULL, NULL,                    \
 			      &pcd8544_config_##inst, POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY,   \
 			      &pcd8544_api);
 
