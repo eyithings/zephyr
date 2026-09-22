@@ -270,7 +270,8 @@ static DEVICE_API(display, pcd8544_api) = {
 			{                                                                          \
 				.mode = MIPI_DBI_MODE_SPI_4WIRE,                                   \
 				.config = MIPI_DBI_SPI_CONFIG_DT_INST(                             \
-					inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0),            \
+					inst,                                                      \
+					SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LOCK_ON, 0),    \
 			},                                                                         \
 		.bias = DT_INST_PROP(inst, bias),                                                  \
 		.vop = DT_INST_PROP(inst, vop),                                                    \
