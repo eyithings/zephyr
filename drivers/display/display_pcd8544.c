@@ -22,6 +22,7 @@ struct pcd8544_config {
 	struct mipi_dbi_config bus_config;
 
 	uint8_t bias;
+	uint8_t vop;
 };
 
 struct pcd8544_datas {
@@ -272,6 +273,7 @@ static DEVICE_API(display, pcd8544_api) = {
 					inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0),            \
 			},                                                                         \
 		.bias = DT_INST_PROP(inst, bias),                                                  \
+		.vop = DT_INST_PROP(inst, vop),                                                    \
 	};                                                                                         \
                                                                                                    \
 	static struct pcd8544_datas pcd8544_datas_##inst;                                          \
