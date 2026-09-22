@@ -259,6 +259,7 @@ static DEVICE_API(display, pcd8544_api) = {
 	.blanking_on = pcd8544_blanking_on,
 	.blanking_off = pcd8544_blanking_off,
 	.set_contrast = pcd8544_set_contrast,
+	.clear = pcd8544_clear,
 };
 
 #define PCD8544_INIT(inst)                                                                         \
