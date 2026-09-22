@@ -151,7 +151,7 @@ static int pcd8544_init(const struct device *dev)
 	}
 
 	/* Set vop */
-	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, 0x3F);
+	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, 0x7F & config->vop);
 	if (ret < 0) {
 		return ret;
 	}
