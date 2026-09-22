@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(display_pcd8544, CONFIG_DISPLAY_LOG_LEVEL);
 
 /* FUNCTION SET */
 
-#define CMD_OP_FUNCSET 0x20 /* 0b00100000 */
+#define CMD_OP_FUNCSET 0x20
 
 #define CMD_VALUE_POWERDOWN BIT(2)
 #define CMD_VALUE_POWERON   0
@@ -36,28 +36,32 @@ LOG_MODULE_REGISTER(display_pcd8544, CONFIG_DISPLAY_LOG_LEVEL);
 
 /* DISPLAY CONTROL */
 
-#define CMD_OP_DISP_CTRL 0x08 /* 0b00001000 */
+#define CMD_OP_DISP_CTRL 0x08
 
 #define CMD_VALUE_DISPLAY_BLANK  0
 #define CMD_VALUE_DISPLAY_NORMAL BIT(2)
 
 /* SET Y ADDR */
 
-#define CMD_OP_SETY 0x40 /* 0b01000000 */
+#define CMD_OP_SETY   0x40
+#define CMD_MASK_SETY 0x07
 
 /* SET X ADDR */
 
-#define CMD_OP_SETX 0x80 /* 0b10000000 */
+#define CMD_OP_SETX   0x80
+#define CMD_MASK_SETX 0x7F
 
 /* EXTENDED MODE */
 
 /* Set bias */
 
-#define CMD_EXOP_SET_BIAS 0x10 /* 0b00010000 */
+#define CMD_EXOP_SET_BIAS  0x10
+#define CMD_EXOP_MASK_BIAS 0x07
 
 /* Set VOp */
 
-#define CMD_EXOP_SET_VOP 0x80 /* 0b10000000 */
+#define CMD_EXOP_SET_VOP  0x80
+#define CMD_EXOP_MASK_VOP 0x7F
 
 struct pcd8544_config {
 	const struct device *bus;
@@ -106,12 +110,12 @@ static int pcd8544_set_position(const struct device *dev, uint8_t x, uint8_t y)
 	if (x < DISPLAY_WIDTH && y < DISPLAY_PAGES) {
 		int ret;
 
-		ret = pcd8544_cmd_send(dev, CMD_OP_SETX, 0x7F & x);
+		ret = pcd8544_cmd_send(dev, CMD_OP_SETX, CMD_MASK_SETX & x);
 		if (ret < 0) {
 			return ret;
 		}
 
-		ret = pcd8544_cmd_send(dev, CMD_OP_SETY, 0x07 & y);
+		ret = pcd8544_cmd_send(dev, CMD_OP_SETY, CMD_MASK_SETY & y);
 		return ret;
 	} else {
 		return -EINVAL;
@@ -145,13 +149,13 @@ static int pcd8544_init(const struct device *dev)
 	}
 
 	/* Set bias */
-	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_BIAS, 0x07 & config->bias);
+	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_BIAS, CMD_EXOP_MASK_BIAS & config->bias);
 	if (ret < 0) {
 		return ret;
 	}
 
 	/* Set vop */
-	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, 0x7F & config->vop);
+	ret = pcd8544_cmd_send(dev, CMD_EXOP_SET_VOP, CMD_EXOP_MASK_VOP & config->vop);
 	if (ret < 0) {
 		return ret;
 	}
