@@ -273,6 +273,16 @@
 				phase-length = <0x0>;
 				mipi-mode = "MIPI_DBI_MODE_SPI_4WIRE";
 			};
+
+			test_mipi_dbi_pcd8544: pcd8544@16 {
+				compatible = "philips,pcd8544";
+				reg = <16>;
+				mipi-max-frequency = <4000000>;
+				width = <84>;
+				height = <48>;
+				bias = <3>;
+				mipi-mode = "MIPI_DBI_MODE_SPI_4WIRE";
+			};
 		};
 
 		test_mipi_dbi_xfr_16bit_write_only {

@@ -6,6 +6,7 @@
 config PCD8544
 	bool "PCD8544 LCD display controller driver"
 	default y
+	depends on DT_HAS_PHILIPS_PCD8544_ENABLED
 	select MIPI_DBI
 	help
 	  Enable PCD8544 display controller driver
